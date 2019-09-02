@@ -63,6 +63,7 @@ public class TopicPartitionWriter {
   private final SinkTaskContext context;
   private int recordCount;
   private final int flushSize;
+  private final int maxWriterCount;
   private final long rotateIntervalMs;
   private final long rotateScheduleIntervalMs;
   private long nextScheduledRotation;
@@ -120,6 +121,7 @@ public class TopicPartitionWriter {
                                   ? ((TimeBasedPartitioner) partitioner).getTimestampExtractor()
                                   : null;
     flushSize = connectorConfig.getInt(S3SinkConnectorConfig.FLUSH_SIZE_CONFIG);
+    maxWriterCount = connectorConfig.getInt(S3SinkConnectorConfig.MAX_WRITER_COUNT_CONFIG);
     topicsDir = connectorConfig.getString(StorageCommonConfig.TOPICS_DIR_CONFIG);
     rotateIntervalMs = connectorConfig.getLong(S3SinkConnectorConfig.ROTATE_INTERVAL_MS_CONFIG);
     if (rotateIntervalMs > 0 && timestampExtractor == null) {
@@ -264,6 +266,14 @@ public class TopicPartitionWriter {
     } else if (rotateOnTime(encodedPartition, currentTimestamp, now)) {
       setNextScheduledRotation();
       nextState();
+    } else if (rotateOnWriterCount(encodedPartition)) {
+      log.debug(
+              "Starting commit and rotation for topic partition {} with start offset {} to "
+              + "avoid exceeding writer count limit",
+              tp,
+              startOffsets
+      );
+      nextState();
     } else {
       currentEncodedPartition = encodedPartition;
       SinkRecord projectedRecord = compatibility.project(
@@ -286,6 +296,11 @@ public class TopicPartitionWriter {
       }
     }
     return true;
+  }
+
+  private boolean rotateOnWriterCount(String encodedPartition) {
+    return maxWriterCount > 0 && writers.size() == maxWriterCount
+            && !writers.containsKey(encodedPartition);
   }
 
   private void commitOnTimeIfNoData(long now) {

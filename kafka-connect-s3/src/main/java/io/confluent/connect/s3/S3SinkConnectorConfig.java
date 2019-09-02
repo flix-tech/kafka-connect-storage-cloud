@@ -134,6 +134,9 @@ public class S3SinkConnectorConfig extends StorageSinkConnectorConfig {
   public static final String S3_RETRY_BACKOFF_CONFIG = "s3.retry.backoff.ms";
   public static final int S3_RETRY_BACKOFF_DEFAULT = 200;
 
+  public static final String MAX_WRITER_COUNT_CONFIG = "max.writer.count";
+  public static final int MAX_WRITER_COUNT_DEFAULT = -1;
+
   private final String name;
 
   private final StorageCommonConfig commonConfig;
@@ -443,6 +446,22 @@ public class S3SinkConnectorConfig extends StorageSinkConnectorConfig {
           ++orderInGroup,
           Width.SHORT,
           "S3 HTTP Send Uses Expect Continue"
+      );
+
+      configDef.define(
+          MAX_WRITER_COUNT_CONFIG,
+          Type.INT,
+          MAX_WRITER_COUNT_DEFAULT,
+          Importance.HIGH,
+          "Maximum number of parallel writers to be held open. "
+                  + "If positive, this configuration triggers a file rotation before a new writer "
+                  + "would be opened above the configured limit. It is useful to cap the memory "
+                  + "consumption of the connector as each writer can take up significant amount of "
+                  + "memory. Default value -1 means the feature is disabled.",
+          group,
+          ++orderInGroup,
+          Width.SHORT,
+          "Maximum Writer Count"
       );
 
     }

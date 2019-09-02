@@ -688,6 +688,84 @@ public class TopicPartitionWriterTest extends TestWithMockedS3 {
     verify(expectedFiles, 3, schema, records);
   }
 
+  @Test
+  public void testWriteRecordTimeBasedPartitionFieldTimestampHoursWithWriterCountRotation() throws Exception {
+    int writerCount = 3;
+    // Do not roll on size or time only based on writers
+    localProps.put(S3SinkConnectorConfig.FLUSH_SIZE_CONFIG, "1000");
+    localProps.put(
+            S3SinkConnectorConfig.MAX_WRITER_COUNT_CONFIG,
+            String.valueOf(writerCount)
+    );
+    setUp();
+
+    // Define the partitioner
+    Partitioner<?> partitioner = new HourlyPartitioner<>();
+    parsedConfig.put(PartitionerConfig.TIMESTAMP_EXTRACTOR_CLASS_CONFIG, "RecordField");
+    partitioner.configure(parsedConfig);
+
+    TopicPartitionWriter topicPartitionWriter = new TopicPartitionWriter(
+            TOPIC_PARTITION, writerProvider, partitioner, connectorConfig, context);
+
+    try {
+      String key = "key";
+      Schema schema = createSchemaWithTimestampField();
+
+      DateTime first = new DateTime(2017, 3, 2, 10, 0, DateTimeZone.forID("America/Los_Angeles"));
+      // One record every 20 minutes, puts 3 records into every s3 partition
+      long advanceMs = 1000 * 60 * 20;
+      long timestamp = first.getMillis();
+      int size = 9;
+
+      ArrayList<Struct> records = new ArrayList<>(size);
+      for (int i = 0; i < size; ++i) {
+        records.add(createRecordWithTimestampField(schema, timestamp));
+        timestamp += advanceMs;
+      }
+      Collection<SinkRecord> sinkRecords = createSinkRecords(records, key, schema);
+
+      for (SinkRecord record : sinkRecords) {
+        topicPartitionWriter.buffer(record);
+      }
+
+      topicPartitionWriter.write();
+
+      // Check that we don't commit while we're still under the writer limit
+      verify(Collections.emptyList(), 0, schema, Collections.emptyList());
+
+      // Send one last record to flush the previous ones.
+      long timestampMuchLater = first.plusHours(6).getMillis();
+      Struct lastOne = createRecordWithTimestampField(schema, timestampMuchLater);
+      SinkRecord lastRecord = createSinkRecords(Collections.singletonList(lastOne), key, schema, 10).get(0);
+
+      topicPartitionWriter.buffer(lastRecord);
+      topicPartitionWriter.write();
+
+      String encodedPartitionFirst = getTimebasedEncodedPartition(first.getMillis());
+      String encodedPartitionSecond = getTimebasedEncodedPartition(first.plusHours(1).getMillis());
+      String encodedPartitionThird = getTimebasedEncodedPartition(first.plusHours(2).getMillis());
+
+      String dirPrefixFirst = partitioner.generatePartitionedPath(TOPIC, encodedPartitionFirst);
+      List<String> expectedFiles = new ArrayList<>();
+      expectedFiles.add(FileUtils.fileKeyToCommit(topicsDir, dirPrefixFirst, TOPIC_PARTITION, 0, extension,
+              ZERO_PAD_FMT));
+
+      String dirPrefixSecond = partitioner.generatePartitionedPath(TOPIC, encodedPartitionSecond);
+      expectedFiles.add(FileUtils.fileKeyToCommit(topicsDir, dirPrefixSecond, TOPIC_PARTITION, 3, extension,
+              ZERO_PAD_FMT));
+
+      String dirPrefixThird = partitioner.generatePartitionedPath(TOPIC, encodedPartitionThird);
+      expectedFiles.add(FileUtils.fileKeyToCommit(topicsDir, dirPrefixThird, TOPIC_PARTITION, 6, extension,
+              ZERO_PAD_FMT));
+
+      verify(expectedFiles, 3, schema, records);
+
+    } finally { //close writer even if either verify fails
+      topicPartitionWriter.close();
+    }
+
+  }
+
   private String getTimebasedEncodedPartition(long timestamp) {
     long partitionDurationMs = (Long) parsedConfig.get(PartitionerConfig.PARTITION_DURATION_MS_CONFIG);
     String pathFormat = (String) parsedConfig.get(PartitionerConfig.PATH_FORMAT_CONFIG);
