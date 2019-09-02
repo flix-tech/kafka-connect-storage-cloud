@@ -28,6 +28,7 @@
 
     <groupId>io.confluent</groupId>
     <artifactId>kafka-connect-storage-cloud</artifactId>
+    <version>5.3.0-FLIXTECH-1</version>
     <packaging>pom</packaging>
     <name>kafka-connect-storage-cloud</name>
     <organization>
@@ -48,9 +49,9 @@
     </licenses>
 
     <scm>
-        <connection>scm:git:git://github.com/confluentinc/kafka-connect-storage-cloud.git</connection>
-        <developerConnection>scm:git:git@github.com:confluentinc/kafka-connect-storage-cloud.git</developerConnection>
-        <url>https://github.com/confluentinc/kafka-connect-storage-cloud</url>
+        <connection>scm:git:git://github.com/flix-tech/kafka-connect-storage-cloud.git</connection>
+        <developerConnection>scm:git:git@github.com:flix-tech/kafka-connect-storage-cloud.git</developerConnection>
+        <url>https://github.com/flix-tech/kafka-connect-storage-cloud</url>
         <tag>HEAD</tag>
     </scm>
 
@@ -72,6 +73,53 @@
         </repository>
     </repositories>
 
+    <distributionManagement>
+        <snapshotRepository>
+            <id>snapshots</id>
+            <name>flixbus-snapshots</name>
+            <url>https://flixbus.jfrog.io/flixbus/libs-snapshot-local</url>
+        </snapshotRepository>
+        <repository>
+            <id>central</id>
+            <name>flixbus-releases</name>
+            <url>https://flixbus.jfrog.io/flixbus/libs-release-local</url>
+        </repository>
+    </distributionManagement>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.confluent</groupId>
+                <artifactId>kafka-connect-storage-common</artifactId>
+                <version>${confluent.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.confluent</groupId>
+                <artifactId>kafka-connect-storage-core</artifactId>
+                <version>${confluent.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.confluent</groupId>
+                <artifactId>kafka-connect-storage-format</artifactId>
+                <version>${confluent.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.confluent</groupId>
+                <artifactId>kafka-connect-storage-partitioner</artifactId>
+                <version>${confluent.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.confluent</groupId>
+                <artifactId>kafka-connect-storage-wal</artifactId>
+                <version>${confluent.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.confluent</groupId>
+                <artifactId>kafka-connect-avro-converter</artifactId>
+                <version>${confluent.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
     <dependencies>
         <dependency>
             <groupId>org.apache.kafka</groupId>
