@@ -705,7 +705,7 @@ public class TopicPartitionWriterTest extends TestWithMockedS3 {
     partitioner.configure(parsedConfig);
 
     TopicPartitionWriter topicPartitionWriter = new TopicPartitionWriter(
-            TOPIC_PARTITION, writerProvider, partitioner, connectorConfig, context);
+            TOPIC_PARTITION, storage, writerProvider, partitioner, connectorConfig, context);
 
     try {
       String key = "key";
@@ -731,7 +731,7 @@ public class TopicPartitionWriterTest extends TestWithMockedS3 {
       topicPartitionWriter.write();
 
       // Check that we don't commit while we're still under the writer limit
-      verify(Collections.emptyList(), 0, schema, Collections.emptyList());
+      verify(Collections.<String>emptyList(), 0, schema, Collections.<Struct>emptyList());
 
       // Send one last record to flush the previous ones.
       long timestampMuchLater = first.plusHours(6).getMillis();
